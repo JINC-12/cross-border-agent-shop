@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.health import router as health_router
+from backend.api.product import router as product_router
 from backend.settings import settings
 
 app = FastAPI(
@@ -32,6 +33,8 @@ app.add_middleware(
 
 # ---------------------------------------------------------------------------
 # 注册路由
-# 阶段1只有系统探活路由；阶段2开始会继续 include_router 商品模块的路由。
+# 阶段1：系统探活路由（/ 和 /health）
+# 阶段2：商品生成路由（/api/product/generate、/api/product/list）
 # ---------------------------------------------------------------------------
 app.include_router(health_router)
+app.include_router(product_router)

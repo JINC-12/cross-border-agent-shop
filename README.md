@@ -24,9 +24,12 @@ cross-border-agent-shop/
 │   ├── db.py                # MySQL 连接工具（原生 mysql-connector）
 │   ├── api/
 │   │   ├── __init__.py
-│   │   └── health.py        # 根路径 / 与健康检查 /health
+│   │   ├── health.py        # 根路径 / 与健康检查 /health
+│   │   ├── product.py       # 商品生成接口：POST /api/product/generate、GET /api/product/list
+│   │   └── product_store.py # 商品临时存储（内存模拟数据库，后续换 MySQL）
 │   └── agent/
 │       ├── __init__.py
+│       ├── product_agent.py # LangGraph 商品生成 Agent（标题/卖点/文案/绘图提示词）
 │       └── skills/          # 预留：Agent 技能目录
 ├── frontend/                # 预留：Vue3 前端（阶段5）
 ├── docs/                    # 项目文档
@@ -124,10 +127,33 @@ python -c "from backend.db import check_mysql_connection; print(check_mysql_conn
 
 成功返回 `(True, 'MySQL 连接正常')`；失败会打印中文排查步骤。
 
+## 商品生成 API（阶段2）
+
+Agent 流水线：任务拆解 → 生成标题 → 提炼卖点 → 撰写 listing 文案 → 生成 AI 绘图提示词。
+
+- 未配置 `OPENAI_API_KEY` 时自动使用本地模板模拟（`content_source` 为 `mock`）；
+- 配置后真实调用大模型（`content_source` 为 `llm`），调用失败也会自动回退模拟，接口永远可用。
+
+Git Bash 测试示例：
+
+```bash
+# 生成商品内容
+curl -s -X POST http://127.0.0.1:8000/api/product/generate \
+  -H "Content-Type: application/json" \
+  -d '{"product_name": "保温杯", "keywords": ["户外", "礼品"], "extra_requirements": "目标人群经常出差"}'
+
+# 查看生成历史
+curl -s http://127.0.0.1:8000/api/product/list?limit=10
+```
+
+也可以打开 http://127.0.0.1:8000/docs ，找到「商品生成」分组，点 Try it out 直接调试。
+
+> 注意：阶段2数据存内存，服务重启后清空，属于预期行为。
+
 ## 开发阶段规划
 
 - [x] 阶段1：工程骨架 + 配置 + 健康检查 + 版本管理
-- [ ] 阶段2：商品生成模块（LangGraph 最小 Agent + 接口）
+- [x] 阶段2：商品生成模块（LangGraph 最小 Agent + 接口，内存临时存储）
 - [ ] 阶段3：AI 选品模块
 - [ ] 阶段4：广告素材生成模块
 - [ ] 阶段5：Vue3 前端
