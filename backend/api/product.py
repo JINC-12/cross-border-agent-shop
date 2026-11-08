@@ -10,6 +10,8 @@
 找到对应接口 → Try it out → 修改请求体 → Execute 即可。
 """
 
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
@@ -46,6 +48,10 @@ class ProductGenerateRequest(BaseModel):
         max_length=500,
         description="可选：卖家补充要求，例如：强调性价比、目标人群是宝妈",
     )
+    language: Literal["zh", "en"] = Field(
+        default="zh",
+        description="输出语言：zh=简体中文（默认），en=英文",
+    )
 
 
 class ProductGenerateResponse(BaseModel):
@@ -55,6 +61,7 @@ class ProductGenerateResponse(BaseModel):
     created_at: str = Field(description="创建时间（ISO 格式）")
     product_name: str = Field(description="产品名称")
     keywords: list[str] = Field(description="关键词列表")
+    language: str = Field(description="输出语言：zh=简体中文，en=英文")
     task_plan: list[str] = Field(description="Agent 任务拆解计划（可看到思考过程）")
     title: str = Field(description="生成的商品标题")
     selling_points: list[str] = Field(description="卖点列表")
@@ -82,6 +89,7 @@ def generate_product(req: ProductGenerateRequest):
             product_name=req.product_name,
             keywords=req.keywords,
             extra_requirements=req.extra_requirements,
+            language=req.language,
         )
     except Exception as exc:
         # Agent 内部意外出错时，返回 500 并带上原因，方便定位

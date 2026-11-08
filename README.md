@@ -133,6 +133,7 @@ Agent 流水线：任务拆解 → 生成标题 → 提炼卖点 → 撰写 list
 
 - 未配置 `OPENAI_API_KEY` 时自动使用本地模板模拟（`content_source` 为 `mock`）；
 - 配置后真实调用大模型（`content_source` 为 `llm`），调用失败也会自动回退模拟，接口永远可用。
+- `language` 参数：`zh`（默认，简体中文）/ `en`（英文），控制标题、卖点、listing 文案的语种；AI 绘图提示词固定英文。
 
 Git Bash 测试示例：
 

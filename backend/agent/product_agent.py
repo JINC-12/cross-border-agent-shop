@@ -39,6 +39,7 @@ class ProductState(TypedDict):
     product_name: str          # 产品名称，例如：保温杯
     keywords: list[str]        # 关键词，例如：["户外", "礼品"]
     extra_requirements: str    # 卖家的补充要求，可以为空
+    language: str              # 输出语言：zh=简体中文（默认），en=英文
 
     # ---- 过程字段 ----
     task_plan: list[str]       # 第一个节点拆解出的任务计划
@@ -64,6 +65,17 @@ _SYSTEM_PROMPT = (
     "你是一名资深跨境电商文案专家，擅长为 Amazon、Temu、独立站撰写商品内容。"
     "输出要求：简洁、有卖点、符合海外买家阅读习惯。"
 )
+
+
+def _language_instruction(language: str) -> str:
+    """生成语言约束提示，强制模型按指定语言输出。
+
+    language = "en" 时输出英文；其它值（包括 "zh" 和非法值）一律输出简体中文。
+    加这一句是因为模型看到"跨境电商"容易自动切换成英文标题。
+    """
+    if language == "en":
+        return "输出语言要求：全部使用英文，不要出现中文。"
+    return "输出语言要求：全部使用简体中文，不要出现英文标题或英文卖点。"
 
 
 def _llm_generate(user_prompt: str) -> str | None:
@@ -188,6 +200,7 @@ def title_node(state: ProductState) -> dict:
     )
     if state["extra_requirements"]:
         user_prompt += f"\n卖家补充要求：{state['extra_requirements']}"
+    user_prompt += f"\n{_language_instruction(state['language'])}"
 
     llm_text = _llm_generate(user_prompt)
     if llm_text:
@@ -213,6 +226,7 @@ def selling_points_node(state: ProductState) -> dict:
     )
     if state["extra_requirements"]:
         user_prompt += f"\n卖家补充要求：{state['extra_requirements']}"
+    user_prompt += f"\n{_language_instruction(state['language'])}"
 
     llm_text = _llm_generate(user_prompt)
     if llm_text:
@@ -240,6 +254,7 @@ def listing_node(state: ProductState) -> dict:
     )
     if state["extra_requirements"]:
         user_prompt += f"\n卖家补充要求：{state['extra_requirements']}"
+    user_prompt += f"\n{_language_instruction(state['language'])}"
 
     llm_text = _llm_generate(user_prompt)
     if llm_text:
@@ -258,9 +273,11 @@ def image_prompt_node(state: ProductState) -> dict:
     keywords = state["keywords"]
     title = state["title"]
 
+    # 绘图提示词固定用英文：Midjourney / DALL·E 对英文提示理解更准确，
+    # 所以这里不受 language 参数影响。
     user_prompt = (
         f"请为产品「{name}」（标题：{title}）生成一段英文 AI 绘图提示词，"
-        f"用于 Midjourney / DALL·E 生成电商主图，只输出提示词本身：\n"
+        f"用于 Midjourney / DALL·E 生成电商主图，只输出英文提示词本身，不要输出中文：\n"
         f"关键词：{'、'.join(keywords) if keywords else '无'}"
     )
 
@@ -316,17 +333,29 @@ product_graph = build_product_graph()
 
 
 def run_product_agent(
-    product_name: str, keywords: list[str], extra_requirements: str = ""
+    product_name: str,
+    keywords: list[str],
+    extra_requirements: str = "",
+    language: str = "zh",
 ) -> dict:
     """运行商品生成 Agent，返回完整结果字典。
 
     参数来自 HTTP 请求，组装成初始状态后交给图执行；
     invoke 会按边的顺序跑完所有节点，返回最终状态（包含所有字段）。
+
+    language：输出语言，zh=简体中文（默认），en=英文。
+              注意：Mock 模板固定为中文，只在未配置 Key / 调用失败时使用。
     """
+    # 统一小写并兜底：非法值一律按中文处理，避免脏数据影响提示词
+    lang = (language or "zh").strip().lower()
+    if lang not in ("zh", "en"):
+        lang = "zh"
+
     initial_state: ProductState = {
         "product_name": product_name.strip(),
         "keywords": [k.strip() for k in keywords if k.strip()],
         "extra_requirements": extra_requirements.strip(),
+        "language": lang,
         "task_plan": [],
         "title": "",
         "selling_points": [],
