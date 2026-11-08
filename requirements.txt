@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+langgraph
+langchain-openai
+pydantic
+pydantic-settings
+redis
+mysql-connector-python
